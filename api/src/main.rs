@@ -1,3 +1,5 @@
+use actix_web::get;
+use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::{web, App, HttpServer};
@@ -29,6 +31,12 @@ pub async fn broadcast_msg(
     HttpResponse::Ok().body("msg sent")
 }
 
+
+#[get("/")]
+async fn index(_req: HttpRequest) -> &'static str {
+    "Hello world!"
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let pool = PgPoolOptions::new()
@@ -53,6 +61,7 @@ async fn main() -> std::io::Result<()> {
             .route("/events{_:/?}", web::get().to(sse_client))
             // This route will create a notification
             .route("/events/{msg}", web::get().to(broadcast_msg))
+            .service(index)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()
