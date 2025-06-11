@@ -47,9 +47,9 @@ async fn main() -> std::io::Result<()> {
 
     let broadcaster = Broadcaster::create();
 
-    sqlx::query("CREATE DATABASE G;")
-        .execute(&pool)
-        .await;
+    // sqlx::query("CREATE DATABASE G;")
+    //     .execute(&pool)
+    //     .await;
 
     HttpServer::new(move || {
         App::new()
