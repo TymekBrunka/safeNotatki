@@ -3,20 +3,18 @@ use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::{web, App, HttpServer};
-use sqlx::Pool;
-use sqlx::Postgres;
-mod broadcast;
-use self::broadcast::Broadcaster;
-use std::{io, sync::Arc};
+// use sqlx::Pool;
+// use sqlx::Postgres;
+use std::sync::Arc;
 use actix_web_lab::extract::Path;
 
-use sqlx::postgres::PgPoolOptions;
-use sqlx::Row;
+mod broadcast;
+use self::broadcast::Broadcaster;
+mod appstate;
+use self::appstate::AppState;
 
-pub struct  AppState{
-    broadcaster:Arc<Broadcaster>,
-    db: Pool<Postgres>
-}
+use sqlx::postgres::PgPoolOptions;
+// use sqlx::Row;
 
 // SSE
 pub async fn sse_client(state: web::Data<AppState>) -> impl Responder {
@@ -41,7 +39,7 @@ async fn index(_req: HttpRequest) -> &'static str {
 async fn main() -> std::io::Result<()> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect("postgres://postgres:postgres@localhost:5432/safenotatki")
+        .connect("postgres://postgres:postgres@localhost:5432/facecloud")
         .await
         .expect("Error creating connection pool.");
 
