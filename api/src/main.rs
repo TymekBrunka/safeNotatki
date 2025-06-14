@@ -21,6 +21,7 @@ mod structs;
 use self::structs::AppState;
 mod endpoints;
 use endpoints::general::*;
+pub mod utils;
 
 // SSE
 #[get("/events{_:/?}")]
@@ -62,6 +63,7 @@ async fn main() -> std::io::Result<()> {
     // sqlx::query("CREATE DATABASE G;")
     //     .execute(&pool)
     //     .await;
+    //
 
     HttpServer::new(move || {
         App::new()
