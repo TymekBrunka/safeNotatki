@@ -15,13 +15,16 @@ use actix_web_lab::extract::Path;
 use dotenv::dotenv;
 use std::env;
 
+// definiowanie rustowi że ma moduły
 mod broadcast;
-use self::broadcast::Broadcaster;
 mod structs;
-use self::structs::AppState;
 mod endpoints;
-use endpoints::general::*;
 pub mod utils;
+pub mod wrappers;
+
+use self::broadcast::Broadcaster;
+use self::structs::AppState;
+use endpoints::general::*;
 
 // SSE
 #[get("/events{_:/?}")]
@@ -85,6 +88,7 @@ async fn main() -> std::io::Result<()> {
             //# general
             .service(dbreinit)
             .service(login)
+            .service(logout)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()

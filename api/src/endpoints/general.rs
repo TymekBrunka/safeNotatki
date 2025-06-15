@@ -1,6 +1,7 @@
 use crate::structs::{AppState, ErrEnum};
 use crate::utils::{errprint, trans_multi, trans_multier};
 
+use actix_web::cookie::time::OffsetDateTime;
 use actix_web::cookie::Cookie;
 use actix_web::{post, HttpRequest};
 // use actix_web::HttpRequest;
@@ -28,7 +29,7 @@ async fn login(
     let email = data.email.clone();
     let mut password = data.password.clone();
 
-    let mut er: Result<(), sqlx::Error> = Ok(());
+    let mut er: Option<sqlx::Error> = None;
     let user: Option<(i32, bool, String)> = match sqlx::query_as("select id, is_active, password from users where email=$1 limit 1;")
         .bind(&email)
         .fetch_one(&state.db)
@@ -37,12 +38,12 @@ async fn login(
         Err(sqlx::Error::RowNotFound) => None,
         Err(err) => {
             errprint!("{}", err);
-            er = Err(err);
+            er = Some(err);
             None
         }
     };
 
-    if er.is_err() {
+    if er.is_some() {
         return Err(error::ErrorBadRequest("Wystąpił błąd podczas logowania."));    
     }
 
@@ -65,6 +66,14 @@ async fn login(
     response.add_cookie(&Cookie::build("email", email).finish()).unwrap();
     response.add_cookie(&Cookie::build("password", password).finish()).unwrap();
     Ok(response)
+}
+
+#[post("/logout")]
+async fn logout() -> HttpResponse {
+    let mut response = HttpResponse::Ok().body("Pomyślnie wylogowano.");
+    response.add_cookie(&Cookie::build("email", "").expires(OffsetDateTime::UNIX_EPOCH).finish()).unwrap();
+    response.add_cookie(&Cookie::build("password", "").expires(OffsetDateTime::UNIX_EPOCH).finish()).unwrap();
+    response
 }
 
 #[derive(Deserialize)]
@@ -143,5 +152,5 @@ async fn dbreinit(
     );
 
     transaction.commit().await.unwrap_or_else(|err| {errprint!("{}", err)});
-    Ok(HttpResponse::Ok().body("Zresetowano bazę danych."))
+    Ok(HttpResponse::Ok().body("Pomyślnie zresetowano bazę danych."))
 }
