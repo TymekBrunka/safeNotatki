@@ -15,3 +15,7 @@ pub struct AppState{
     pub env: Env
 }
 
+pub enum ErrEnum{
+    Http(actix_web::Error),
+    Sqlx(sqlx::Error)
+}

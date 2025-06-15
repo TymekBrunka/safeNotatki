@@ -26,7 +26,7 @@ macro_rules! warnprint {
 macro_rules! trans_multier {
     ($transaction:expr, $($sql:literal)*) => {
         $(
-            _ = sqlx::query!($sql).fetch_all(&mut *$transaction).await.unwrap()
+            _ = sqlx::query!($sql).fetch_all(&mut *$transaction).await.unwrap();
         )*
     }
 }

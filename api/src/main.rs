@@ -84,6 +84,7 @@ async fn main() -> std::io::Result<()> {
             .service(broadcast_msg)
             //# general
             .service(dbreinit)
+            .service(login)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()
