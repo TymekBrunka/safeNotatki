@@ -100,6 +100,10 @@ async fn dbreinit(
         }
     };
 
+    if is_err {
+        return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))
+    }
+
     trans_multier!(transaction,
         "INSERT INTO users (
             first_name,
@@ -139,6 +143,5 @@ async fn dbreinit(
     );
 
     transaction.commit().await.unwrap_or_else(|err| {errprint!("{}", err)});
-    if is_err { return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))}
     Ok(HttpResponse::Ok().body("Zresetowano bazę danych."))
 }
