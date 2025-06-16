@@ -14,13 +14,34 @@ pub fn random_password(length: usize) -> String {
 }
 
 pub mod user_admin {
-    use crate::utils::errprint;
+    use crate::{structs::Single, utils::errprint};
     use chrono::NaiveDate;
-    use sqlx::{pool::PoolConnection, Acquire, Postgres};
+    use futures_util::FutureExt;
+    use sqlx::{pool::PoolConnection, Acquire, Postgres, FromRow};
 
     use super::random_password;
 
-    pub async fn add(db: &mut PoolConnection<Postgres>, first_name: String, last_name: String, email: String, birth_date: NaiveDate, user_types: Vec<i32>) -> Result<(), sqlx::Error> {
+    pub async fn get_user_type_ids(
+        db: &mut PoolConnection<Postgres>, userid: i32
+    ) -> Result<Vec<i32>, sqlx::Error> {
+        let conn = db.acquire().await.unwrap();
+        let mut er: Option<sqlx::Error> = None;
+        let user_types: Result< Vec<Single<i32>>, sqlx::Error> = sqlx::query_as("SELECT user_type FROM users_users_type WHERE user_id = $1;")
+            .bind(userid)
+            .fetch_all(&mut *conn)
+            .await;
+
+        user_types
+    }
+
+    pub async fn add(
+        db: &mut PoolConnection<Postgres>,
+        first_name: String,
+        last_name: String,
+        email: String,
+        birth_date: NaiveDate,
+        user_types: Vec<i32>
+    ) -> Result<(), sqlx::Error> {
         let mut transaction = db.begin().await.unwrap();
 
         let mut er: Option<sqlx::Error> = None;

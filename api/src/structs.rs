@@ -35,3 +35,32 @@ pub struct DbUser {
     pub status: bool,
     pub is_active: bool
 }
+
+#[derive(sqlx::FromRow, PartialEq, Eq)]
+pub struct Single<T> {
+    pub value: T
+}
+
+trait Unsingler<T> {
+    fn unsingle(self) -> Vec<T>;
+}
+
+impl<T> Unsingler<T> for Vec<Single<T>> {
+    fn unsingle(self) -> Vec<T> {
+        self.into_iter().map(|s| s.value).collect()
+    }
+}
+
+trait ResultUnsingler<T, E> {
+    fn unsingle(self) -> Result<Vec<T>, E>;
+}
+
+impl<T, E> ResultUnsingler<T, E> for Vec<Single<T>> {
+    fn unsingle(self) -> Result<Vec<T>, E> {
+        let mut err: Option<E> = None;
+        let ret = match self {
+            Ok(t) => {t.into_iter().map(|s| s.value).collect()},
+            Err(e) => {err = Some(e)}
+        }
+    }
+}

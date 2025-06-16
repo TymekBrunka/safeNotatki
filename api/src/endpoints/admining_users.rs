@@ -4,13 +4,16 @@ use crate::utils::{get_cookie, get_user}
 use actix_web::cookie::{Cookie, time::OffsetDateTime};
 use actix_web::{HttpRequest, HttpResponse, Error, error, web, post};
 use serde::Deserialize;
+use chrono::NaiveDate;
 
 #[derive(Deserialize)]
 struct AddUserStruct {
+    id: i32,
     first_name: String,
     last_name: String,
     email: String,
-    
+    birth_date: NaiveDate,
+    user_types: Vec<i32>
 }
 
 #[post("/admin/users/add")]
