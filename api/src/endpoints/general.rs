@@ -1,13 +1,8 @@
-use crate::structs::{AppState, ErrEnum};
+use crate::structs::AppState;
 use crate::utils::{errprint, trans_multi, trans_multier};
 
-use actix_web::cookie::time::OffsetDateTime;
-use actix_web::cookie::Cookie;
-use actix_web::{post, HttpRequest};
-// use actix_web::HttpRequest;
-use actix_web::HttpResponse;
-// use actix_web::Responder;
-use actix_web::{Error, error, web};
+use actix_web::cookie::{Cookie, time::OffsetDateTime};
+use actix_web::{HttpResponse, Error, error, web, post};
 use serde::Deserialize;
 use sha256;
 use sqlx::Acquire;
@@ -25,30 +20,30 @@ async fn login(
     data: web::Json<LoginStruct>,
     // req: HttpRequest
 ) -> Result<HttpResponse, Error> {
+
     // println!("{}", req.headers().get("cookie").unwrap().to_str().unwrap());
     let email = data.email.clone();
     let mut password = data.password.clone();
 
-    let mut er: Option<sqlx::Error> = None;
+    let mut er: Option<Error> = None;
     let user: Option<(i32, bool, String)> = match sqlx::query_as("select id, is_active, password from users where email=$1 limit 1;")
         .bind(&email)
         .fetch_one(&state.db)
         .await {
         Ok(a) => {Some(a)},
-        Err(sqlx::Error::RowNotFound) => None,
+        Err(sqlx::Error::RowNotFound) => {
+            er = Some(error::ErrorBadRequest("Użytkownik nie istnieje."));
+            None
+        },
         Err(err) => {
             errprint!("{}", err);
-            er = Some(err);
+            er = Some(error::ErrorInternalServerError("Wystąpił błąd podczas logowania."));
             None
         }
     };
 
     if er.is_some() {
-        return Err(error::ErrorBadRequest("Wystąpił błąd podczas logowania."));    
-    }
-
-    if user.is_none() {
-        return Err(error::ErrorBadRequest("Użytkownik nie istnieje."))    
+        return Err(er.unwrap())
     }
 
     let user = user.unwrap();
@@ -70,6 +65,7 @@ async fn login(
 
 #[post("/logout")]
 async fn logout() -> HttpResponse {
+
     let mut response = HttpResponse::Ok().body("Pomyślnie wylogowano.");
     response.add_cookie(&Cookie::build("email", "").expires(OffsetDateTime::UNIX_EPOCH).finish()).unwrap();
     response.add_cookie(&Cookie::build("password", "").expires(OffsetDateTime::UNIX_EPOCH).finish()).unwrap();
@@ -87,6 +83,7 @@ async fn dbreinit(
     state: web::Data<AppState>,
     data: web::Json<DbreinitStruct>,
 ) -> Result<HttpResponse, Error> {
+
     let password = data.password.clone();
     let password = format!("{}{}{}", &password[4..5], &password[..], &password[2..4]);
     let hash = sha256::digest(&password);
@@ -101,7 +98,7 @@ async fn dbreinit(
 
     let sql = String::from_utf8(read("./sqlv2.sql").await.unwrap()).unwrap();
     let mut is_err = false;
-    match trans_multi(sql, &mut transaction).await{
+    match trans_multi(sql, &mut *transaction).await{
         Ok(_) => {}
         Err(err) => {
             is_err = true;

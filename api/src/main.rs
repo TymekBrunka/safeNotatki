@@ -24,7 +24,9 @@ pub mod wrappers;
 
 use self::broadcast::Broadcaster;
 use self::structs::AppState;
+
 use endpoints::general::*;
+use endpoints::admining_users::*;
 
 // SSE
 #[get("/events{_:/?}")]

@@ -1,4 +1,5 @@
 use nanorand::{tls_rng, Rng};
+use chrono::{NaiveDate, Utc};
 
 pub fn random_password(length: usize) -> String {
     let mut rng = tls_rng();
@@ -14,16 +15,16 @@ pub fn random_password(length: usize) -> String {
 
 pub mod user_admin {
     use crate::utils::errprint;
-    use sqlx::{Pool, Postgres};
+    use chrono::NaiveDate;
+    use sqlx::{pool::PoolConnection, Acquire, Postgres};
 
     use super::random_password;
 
-    pub async fn add(db: Pool<Postgres>, first_name: String, last_name: String, email: String, birth_date: String, user_types: Vec<i32>) -> Result<(), sqlx::Error> {
-        let mut conn = db;
-        let mut transaction = conn.begin().await.unwrap();
+    pub async fn add(db: &mut PoolConnection<Postgres>, first_name: String, last_name: String, email: String, birth_date: NaiveDate, user_types: Vec<i32>) -> Result<(), sqlx::Error> {
+        let mut transaction = db.begin().await.unwrap();
 
-        let er: Option<sqlx::Error> = None;
-        let id: i32 = match sqlx::query_as("
+        let mut er: Option<sqlx::Error> = None;
+        let (id,): (i32,) = match sqlx::query_as("
         INSERT INTO users (
             first_name,
             last_name,
@@ -32,7 +33,7 @@ pub mod user_admin {
             birth_date,
             last_login,
             bio
-        ) VALUES ($1, $2, $3, $4, $5
+        ) VALUES ($1, $2, $3, $4, $5,
             now(),
             ''
         ) RETURNING id;")
@@ -47,7 +48,7 @@ pub mod user_admin {
             Err(err) => {
                 errprint!("{}", err);
                 er = Some(err);
-                -1
+                (-1,)
             }
         };
 
