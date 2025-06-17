@@ -41,26 +41,27 @@ pub struct Single<T> {
     pub value: T
 }
 
-trait Unsingler<T> {
+pub trait Unsingler<T> {
     fn unsingle(self) -> Vec<T>;
 }
 
 impl<T> Unsingler<T> for Vec<Single<T>> {
     fn unsingle(self) -> Vec<T> {
-        self.into_iter().map(|s| s.value).collect()
+        self.into_iter().map(|Single{value}| value).collect()
     }
 }
 
-trait ResultUnsingler<T, E> {
-    fn unsingle(self) -> Result<Vec<T>, E>;
-}
-
-impl<T, E> ResultUnsingler<T, E> for Vec<Single<T>> {
-    fn unsingle(self) -> Result<Vec<T>, E> {
-        let mut err: Option<E> = None;
-        let ret = match self {
-            Ok(t) => {t.into_iter().map(|s| s.value).collect()},
-            Err(e) => {err = Some(e)}
-        }
-    }
-}
+// trait ResultUnsingler<T, E> {
+//     fn unsingle(self) -> Result<Vec<T>, E>;
+// }
+//
+// impl<T, E> ResultUnsingler<T, E> for Vec<Single<T>> {
+//     fn unsingle(self) -> Result<Vec<T>, E> {
+//         let mut err: Option<E> = None;
+//         let ret: Vec<i32> = match self {
+//             Ok(_) => {vec![]},
+//             Err(e) => { err=Some(e); return vec![] }
+//         };
+//         ret
+//     }
+// }

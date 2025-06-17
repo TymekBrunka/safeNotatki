@@ -1,5 +1,5 @@
 use crate::structs::AppState;
-use crate::utils::{errprint, trans_multi, trans_multier};
+use crate::utils::{errprint, trans_multi, trans_multier, ez};
 
 use actix_web::cookie::{Cookie, time::OffsetDateTime};
 use actix_web::{HttpResponse, Error, error, web, post};
@@ -42,11 +42,7 @@ async fn login(
         }
     };
 
-    if er.is_some() {
-        return Err(er.unwrap())
-    }
-
-    let user = user.unwrap();
+    ez!(er); let user = user.unwrap();
 
     if user.1 {
         password = format!("{}{}{}", &password[4..7], &password[..], &password[2..4]);
@@ -98,13 +94,10 @@ async fn dbreinit(
 
     let sql = String::from_utf8(read("./sqlv2.sql").await.unwrap()).unwrap();
     let mut is_err = false;
-    match trans_multi(sql, &mut *transaction).await{
-        Ok(_) => {}
-        Err(err) => {
-            is_err = true;
-            errprint!("SQL error```\n{}```", err)
-        }
-    };
+    trans_multi(sql, &mut *transaction).await.unwrap_or_else(|err| {
+        is_err = true;
+        errprint!("SQL error```\n{}```", err)
+    });
 
     if is_err {
         return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))
@@ -148,6 +141,14 @@ async fn dbreinit(
         );"
     );
 
-    transaction.commit().await.unwrap_or_else(|err| {errprint!("{}", err)});
+    transaction.commit().await.unwrap_or_else(|err| {
+        errprint!("{}", err);
+        is_err = true;
+    });
+
+    if is_err {
+        return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))
+    }
+
     Ok(HttpResponse::Ok().body("Pomyślnie zresetowano bazę danych."))
 }

@@ -1,7 +1,7 @@
+use actix_web::{Error, HttpRequest, error};
 use serde::de::value::EnumAccessDeserializer;
-use sqlx::{pool::PoolConnection, Acquire, PgConnection, Postgres};
-use actix_web::{error, Error, HttpRequest};
-use std::ops::Deref;
+use sqlx::{Acquire, PgConnection, Postgres, pool::PoolConnection};
+use std::{fmt::Display, ops::Deref};
 
 macro_rules! errprint {
     () => {
@@ -33,9 +33,17 @@ macro_rules! trans_multier {
     }
 }
 
+macro_rules! ez {
+    ($er:tt) => {
+        if $er.is_some() {
+            return Err($er.unwrap());
+        }
+    };
+}
+
 use crate::structs::DbUser;
 
-pub(crate) use {errprint, trans_multier};
+pub(crate) use {errprint, ez, trans_multier};
 
 pub async fn trans_multi(sql: String, transaction: &mut PgConnection) -> Result<(), sqlx::Error> {
     let mut err_string = String::from("");
@@ -55,19 +63,15 @@ pub async fn trans_multi(sql: String, transaction: &mut PgConnection) -> Result<
         }
     }
 
-    if er.is_some() {
-        return Err(er.unwrap());
-    }
-    Ok(())
+    ez!(er); Ok(())
 }
 
 pub async fn get_user(
     db: &mut PoolConnection<Postgres>,
     email: String,
     password: String,
-    do_hashing: bool
+    do_hashing: bool,
 ) -> Result<DbUser, Error> {
-
     let mut password = password;
 
     let conn = db.acquire().await.unwrap();
@@ -75,24 +79,23 @@ pub async fn get_user(
     let user: Option<DbUser> = match sqlx::query_as("SELECT * FROM users WHERE email=$1;")
         .bind(email)
         .fetch_optional(&mut *conn)
-        .await {
-        Ok(a) => {a},
+        .await
+    {
+        Ok(a) => a,
         Err(sqlx::Error::RowNotFound) => {
             er = Some(error::ErrorBadRequest("Użytkownik nie istnieje."));
             None
-        },
+        }
         Err(err) => {
             errprint!("{}", err);
-            er = Some(error::ErrorInternalServerError("Wystąpił błąd podczas logowania."));
+            er = Some(error::ErrorInternalServerError(
+                "Wystąpił błąd podczas logowania.",
+            ));
             None
         }
     };
 
-    if er.is_some() {
-        return Err(er.unwrap());
-    }
-
-    let user = user.unwrap();
+    ez!(er); let user = user.unwrap();
 
     if !do_hashing && user.is_active {
         password = format!("{}{}{}", &password[4..7], &password[..], &password[2..4]);
@@ -100,9 +103,9 @@ pub async fn get_user(
     }
 
     if password != user.password {
-        return Err(error::ErrorBadRequest("Email lub hasło niepoprawne."));    
+        return Err(error::ErrorBadRequest("Email lub hasło niepoprawne."));
     }
-    
+
     Ok(user)
 }
 
@@ -118,10 +121,52 @@ pub fn get_cookie(req: HttpRequest) -> Option<(String, String)> {
             password = Some(String::from(cookie.value()));
         }
     }
-    
+
     if email.is_some() && password.is_some() {
         Some((email.unwrap(), password.unwrap()));
     }
 
     None
+}
+
+pub trait DecupUnwrap<T, E>
+where
+    E: Display,
+{
+    fn decup(self, er: &mut Option<E>, do_print: bool) -> Option<T>;
+}
+
+impl<T, E> DecupUnwrap<T, E> for Result<T, E>
+where
+    E: Display,
+{
+    fn decup(self, er: &mut Option<E>, do_print: bool) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(err) => {
+                if do_print {
+                    errprint!("{}", err);
+                }
+                *er = Some(err);
+                None
+            }
+        }
+    }
+}
+
+pub trait UnwrapPerms {
+    fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32>;
+}
+
+impl UnwrapPerms for Result<Vec<i32>, sqlx::Error> {
+    fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32> {
+        self.unwrap_or_else(|err| {
+            errprint!("{}", err);
+            *er = Some(error::ErrorInternalServerError(
+                "Wystąpił błąd podczas resetowania bazy danych.",
+            ));
+
+            vec![]
+        })
+    }
 }

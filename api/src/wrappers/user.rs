@@ -14,10 +14,11 @@ pub fn random_password(length: usize) -> String {
 }
 
 pub mod user_admin {
-    use crate::{structs::Single, utils::errprint};
+    use crate::utils::{errprint, ez, DecupUnwrap};
+    use crate::structs::{Single, Unsingler};
+
     use chrono::NaiveDate;
-    use futures_util::FutureExt;
-    use sqlx::{pool::PoolConnection, Acquire, Postgres, FromRow};
+    use sqlx::{pool::PoolConnection, Acquire, Postgres};
 
     use super::random_password;
 
@@ -26,12 +27,17 @@ pub mod user_admin {
     ) -> Result<Vec<i32>, sqlx::Error> {
         let conn = db.acquire().await.unwrap();
         let mut er: Option<sqlx::Error> = None;
-        let user_types: Result< Vec<Single<i32>>, sqlx::Error> = sqlx::query_as("SELECT user_type FROM users_users_type WHERE user_id = $1;")
+        let user_types: Option<Vec<Single<i32>>> = sqlx::query_as("SELECT user_type FROM users_users_type WHERE user_id = $1;")
             .bind(userid)
             .fetch_all(&mut *conn)
-            .await;
+            .await
+            .decup(&mut er, true);
 
-        user_types
+        if er.is_some() {
+            return Err(er.unwrap());
+        }
+
+        Ok(user_types.unwrap().unsingle())
     }
 
     pub async fn add(
@@ -45,7 +51,7 @@ pub mod user_admin {
         let mut transaction = db.begin().await.unwrap();
 
         let mut er: Option<sqlx::Error> = None;
-        let (id,): (i32,) = match sqlx::query_as("
+        let (id,): (i32,) = sqlx::query_as("
         INSERT INTO users (
             first_name,
             last_name,
@@ -64,18 +70,12 @@ pub mod user_admin {
             .bind(random_password(12))
             .bind(birth_date)
             .fetch_one(&mut *transaction)
-            .await {
-            Ok(a) => {a},
-            Err(err) => {
+            .await
+            .unwrap_or_else(|err| {
                 errprint!("{}", err);
                 er = Some(err);
                 (-1,)
-            }
-        };
-
-        if er.is_some() {
-            return Err(er.unwrap());
-        }
+            }); ez!(er);
 
         for i in user_types {
             sqlx::query("
@@ -90,8 +90,11 @@ pub mod user_admin {
             .await
             .unwrap();
         }
-        transaction.commit().await.unwrap_or_else(|err| {errprint!("{}", err)});
 
-        Ok(())
+        transaction.commit().await.unwrap_or_else(|err| {
+            errprint!("{}", err); er = Some(err);
+        });
+
+        ez!(er); Ok(())
     }
 }
