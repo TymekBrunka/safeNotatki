@@ -33,9 +33,7 @@ pub mod user_admin {
             .await
             .decup(&mut er, true);
 
-        if er.is_some() {
-            return Err(er.unwrap());
-        }
+        ez!(er);
 
         Ok(user_types.unwrap().unsingle())
     }
