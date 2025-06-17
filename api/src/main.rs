@@ -1,11 +1,18 @@
+use actix_web::error;
 use actix_web::get;
+use actix_web::Error;
 // use actix_web::web::route;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::Responder;
 use actix_web::{web, App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
+use structs::DbUser;
 use structs::Env;
+use utils::ez;
+use utils::get_cookie;
+use utils::get_user;
+use utils::DecupUnwrap;
 // use sqlx::Row;
 // use sqlx::Pool;
 // use sqlx::Postgres;
@@ -16,30 +23,46 @@ use dotenv::dotenv;
 use std::env;
 
 // definiowanie rustowi że ma moduły
-mod broadcast;
 mod structs;
 mod endpoints;
 pub mod utils;
 pub mod wrappers;
 
-use self::broadcast::Broadcaster;
+use self::wrappers::eventor::Eventor;
 use self::structs::AppState;
 
 use endpoints::general::*;
 use endpoints::admining_users::*;
 
 // SSE
-#[get("/events{_:/?}")]
-pub async fn sse_client(state: web::Data<AppState>) -> impl Responder {
-    state.broadcaster.new_client().await
+#[get("/sse{_:/?}")]
+pub async fn sse_client(
+    state: web::Data<AppState>,
+    req: HttpRequest
+) -> Result<impl Responder, Error> {
+
+    let cookie = get_cookie(req);
+    if cookie.is_none() {
+        return Err(error::ErrorUnauthorized("Nie jesteś zalogowany."));
+    }
+
+    let cookie = cookie.unwrap();
+
+    let mut conn = state.db.acquire().await.unwrap();
+    let mut er: Option<Error> = None;
+    let user: Option<DbUser> = get_user(&mut conn, cookie.0, cookie.1, true).await.decup(&mut er, false);
+    ez!(er); let user = user.unwrap();
+
+    Ok(state.sse.new_client(user.id, user.email).await)
+    // Ok(state.broadcaster.new_client(1, "timi".to_string()).await)
 }
 
-#[get("/events/{msg}")]
+#[get("/see/{msg}")]
 pub async fn broadcast_msg(
     state: web::Data<AppState>,
     Path((msg,)): Path<(String,)>,
 ) -> impl Responder {
-    state.broadcaster.broadcast(&msg).await;
+    state.sse.broadcast(&msg).await;
     HttpResponse::Ok().body("msg sent")
 }
 
@@ -63,18 +86,13 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Error creating connection pool.");
 
-    let broadcaster = Broadcaster::create();
-
-    // sqlx::query("CREATE DATABASE G;")
-    //     .execute(&pool)
-    //     .await;
-    //
+    let eventor = Eventor::create();
 
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState {
                 db: pool.clone(),
-                broadcaster: Arc::clone(&broadcaster),
+                sse: Arc::clone(&eventor),
                 env: Env{
                     reinit_user: reinit_user.to_owned(),
                     reinit_password: reinit_password.to_owned(),
@@ -91,6 +109,8 @@ async fn main() -> std::io::Result<()> {
             .service(dbreinit)
             .service(login)
             .service(logout)
+            //# admining users
+            .service(add_user)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()

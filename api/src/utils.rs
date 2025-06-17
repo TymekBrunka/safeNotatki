@@ -1,5 +1,4 @@
 use actix_web::{Error, HttpRequest, error};
-use serde::de::value::EnumAccessDeserializer;
 use sqlx::{Acquire, PgConnection, Postgres, pool::PoolConnection};
 use std::{fmt::Display, ops::Deref};
 
@@ -7,6 +6,11 @@ macro_rules! errprint {
     () => {
         println!("[\x1b[31mERROR\x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m]", fil!(), line!())
     };
+    ($form:tt) => {{
+        println!(
+            concat!("[\x1b[31mERROR\x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m] ", $form), file!(), line!()
+        )
+    }};
     ($form:tt, $($arg:tt)*) => {{
         println!(
             concat!("[\x1b[31mERROR\x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m] ", $form), file!(), line!(), $($arg)*
@@ -18,9 +22,30 @@ macro_rules! warnprint {
     () => {
         println!("[\x1b[33mWARN \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m]", fil!(), line!())
     };
+    ($form:tt) => {{
+        println!(
+            concat!("[\x1b[33mWARN \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m] ", $form), file!(), line!()
+        )
+    }};
     ($form:tt, $($arg:tt)*) => {{
         println!(
             concat!("[\x1b[33mWARN \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[31m{}\x1b[0m] ", $form), file!(), line!(), $($arg)*
+        )
+    }};
+}
+
+macro_rules! sucprint {
+    () => {
+        println!("[\x1b[32mGOOD \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[32m{}\x1b[0m]", fil!(), line!())
+    };
+    ($form:tt) => {{
+        println!(
+            concat!("[\x1b[32mGOOD \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[32m{}\x1b[0m] ", $form), file!(), line!()
+        )
+    }};
+    ($form:tt, $($arg:tt)*) => {{
+        println!(
+            concat!("[\x1b[32mGOOD \x1b[0m / \x1b[33m{}\x1b[0m:\x1b[32m{}\x1b[0m] ", $form), file!(), line!(), $($arg)*
         )
     }};
 }
@@ -43,7 +68,7 @@ macro_rules! ez {
 
 use crate::structs::DbUser;
 
-pub(crate) use {errprint, ez, trans_multier};
+pub(crate) use {errprint, warnprint, sucprint, ez, trans_multier};
 
 pub async fn trans_multi(sql: String, transaction: &mut PgConnection) -> Result<(), sqlx::Error> {
     let mut err_string = String::from("");
@@ -123,7 +148,7 @@ pub fn get_cookie(req: HttpRequest) -> Option<(String, String)> {
     }
 
     if email.is_some() && password.is_some() {
-        Some((email.unwrap(), password.unwrap()));
+        return Some((email.unwrap(), password.unwrap()));
     }
 
     None
@@ -154,6 +179,32 @@ where
     }
 }
 
+pub trait DecupUnwrapActix<T, E>
+where
+    E: Display,
+{
+    fn decup_actix(self, er: &mut Option<Error>, do_print: bool) -> Option<T>;
+}
+
+impl<T, E> DecupUnwrapActix<T, E> for Result<T, E>
+where
+    E: Display,
+{
+    fn decup_actix(self, er: &mut Option<Error>, do_print: bool) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(err) => {
+                if do_print {
+                    errprint!("{}", err);
+                }
+
+                *er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
+                None
+            }
+        }
+    }
+}
+
 pub trait UnwrapPerms {
     fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32>;
 }
@@ -162,9 +213,7 @@ impl UnwrapPerms for Result<Vec<i32>, sqlx::Error> {
     fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32> {
         self.unwrap_or_else(|err| {
             errprint!("{}", err);
-            *er = Some(error::ErrorInternalServerError(
-                "Wystąpił błąd podczas resetowania bazy danych.",
-            ));
+            *er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
 
             vec![]
         })

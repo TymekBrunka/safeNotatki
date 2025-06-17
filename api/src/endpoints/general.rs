@@ -1,5 +1,5 @@
 use crate::structs::AppState;
-use crate::utils::{errprint, trans_multi, trans_multier, ez};
+use crate::utils::{errprint, warnprint, trans_multi, trans_multier, ez};
 
 use actix_web::cookie::{Cookie, time::OffsetDateTime};
 use actix_web::{HttpResponse, Error, error, web, post};
@@ -56,6 +56,7 @@ async fn login(
     let mut response = HttpResponse::Ok().body("Pomyślnie zalogowano");
     response.add_cookie(&Cookie::build("email", email).finish()).unwrap();
     response.add_cookie(&Cookie::build("password", password).finish()).unwrap();
+
     Ok(response)
 }
 
@@ -150,5 +151,6 @@ async fn dbreinit(
         return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))
     }
 
+    warnprint!("Baza danych została zresetowana");
     Ok(HttpResponse::Ok().body("Pomyślnie zresetowano bazę danych."))
 }

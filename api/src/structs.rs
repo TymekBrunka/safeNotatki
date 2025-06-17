@@ -1,8 +1,9 @@
-use super::broadcast::Broadcaster;
+use crate::wrappers::eventor::Eventor;
 
 use sqlx::{Postgres, Pool};
 use std::sync::Arc;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDateTime, NaiveDate};
+use actix_web_lab::sse::Sender;
 
 pub struct Env {
     pub reinit_user: String,
@@ -11,7 +12,7 @@ pub struct Env {
 }
 
 pub struct AppState{
-    pub broadcaster:Arc<Broadcaster>,
+    pub sse:Arc<Eventor>,
     pub db: Pool<Postgres>,
     pub env: Env
 }
@@ -29,39 +30,17 @@ pub struct DbUser {
     pub email: String,
     pub password: String,
     pub birth_date: NaiveDate,
-    pub profile_picture: String,
-    pub last_login: DateTime<Utc>,
+    pub profile_picture: Option<String>,
+    pub last_login: NaiveDateTime,
     pub bio: String,
     pub status: bool,
     pub is_active: bool
 }
 
-#[derive(sqlx::FromRow, PartialEq, Eq)]
-pub struct Single<T> {
-    pub value: T
+#[derive(Debug, Clone)]
+pub struct SseUser {
+    // pub id: i32,
+    pub sender: Sender,
+    pub email: String,
+    pub groups: Vec<i32>
 }
-
-pub trait Unsingler<T> {
-    fn unsingle(self) -> Vec<T>;
-}
-
-impl<T> Unsingler<T> for Vec<Single<T>> {
-    fn unsingle(self) -> Vec<T> {
-        self.into_iter().map(|Single{value}| value).collect()
-    }
-}
-
-// trait ResultUnsingler<T, E> {
-//     fn unsingle(self) -> Result<Vec<T>, E>;
-// }
-//
-// impl<T, E> ResultUnsingler<T, E> for Vec<Single<T>> {
-//     fn unsingle(self) -> Result<Vec<T>, E> {
-//         let mut err: Option<E> = None;
-//         let ret: Vec<i32> = match self {
-//             Ok(_) => {vec![]},
-//             Err(e) => { err=Some(e); return vec![] }
-//         };
-//         ret
-//     }
-// }
