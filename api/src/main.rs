@@ -86,19 +86,18 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Error creating connection pool.");
 
-    let eventor = Eventor::create();
-
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState {
-                db: pool.clone(),
-                sse: Arc::clone(&eventor),
-                env: Env{
-                    reinit_user: reinit_user.to_owned(),
-                    reinit_password: reinit_password.to_owned(),
-                    dyrek_password: dyrek_password.to_owned()
-                }
-            }))
+            .app_data(web::Data::new(
+                AppState::create(
+                    pool.clone(),
+                    Env {
+                        reinit_user: reinit_user.to_owned(),
+                        reinit_password: reinit_password.to_owned(),
+                        dyrek_password: dyrek_password.to_owned(),
+                    },
+                )
+            ))
             .service(index)
             // This route is used to listen to events/ sse events
             // .route("/events{_:/?}", web::get().to(sse_client))
