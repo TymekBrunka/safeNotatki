@@ -343,6 +343,7 @@ dependencies = [
  "nanorand",
  "parking_lot",
  "serde",
+ "serde_json",
  "sha256",
  "sqlx",
  "tokio",

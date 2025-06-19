@@ -1,18 +1,5 @@
-use actix_web::error;
-use actix_web::get;
-use actix_web::Error;
-// use actix_web::web::route;
-use actix_web::HttpRequest;
-use actix_web::HttpResponse;
-use actix_web::Responder;
-use actix_web::{web, App, HttpServer};
+use actix_web::{Error, error, HttpRequest, HttpResponse, Responder, web, App, HttpServer, get};
 use sqlx::postgres::PgPoolOptions;
-use structs::DbUser;
-use structs::Env;
-use utils::ez;
-use utils::get_cookie;
-use utils::get_user;
-use utils::DecupUnwrap;
 // use sqlx::Row;
 // use sqlx::Pool;
 // use sqlx::Postgres;
@@ -28,8 +15,10 @@ mod endpoints;
 pub mod utils;
 pub mod wrappers;
 
+use self::utils::{ez, get_cookie, get_user, DecupUnwrap};
 use self::wrappers::eventor::Eventor;
-use self::structs::AppState;
+use self::wrappers::messanger;
+use self::structs::{AppState, Env, DbUser};
 
 use endpoints::general::*;
 use endpoints::admining_users::*;
@@ -54,16 +43,30 @@ pub async fn sse_client(
     ez!(er); let user = user.unwrap();
 
     Ok(state.sse.new_client(user.id, user.email).await)
-    // Ok(state.broadcaster.new_client(1, "timi".to_string()).await)
+    // Ok(state.sse.new_client(1, "timi".to_string()).await)
 }
 
-#[get("/see/{msg}")]
+#[get("/sse/{msg}")]
 pub async fn broadcast_msg(
     state: web::Data<AppState>,
     Path((msg,)): Path<(String,)>,
-) -> impl Responder {
-    state.sse.broadcast(&msg).await;
-    HttpResponse::Ok().body("msg sent")
+    req: HttpRequest
+) -> Result<impl Responder, Error> {
+
+    let cookie = get_cookie(req);
+    if cookie.is_none() {
+        return Err(error::ErrorUnauthorized("Nie jesteś zalogowany."));
+    }
+
+    let cookie = cookie.unwrap();
+
+    let mut conn = state.db.acquire().await.unwrap();
+    let mut er: Option<Error> = None;
+    let user: Option<DbUser> = get_user(&mut conn, cookie.0, cookie.1, true).await.decup(&mut er, false);
+    ez!(er); let user = user.unwrap();
+
+    messanger::send(&state.sse, msg, user.id, Some(1), Some(1)).await;
+    Ok(HttpResponse::Ok().body("msg sent"))
 }
 
 
@@ -86,17 +89,20 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Error creating connection pool.");
 
+    let eventor = Eventor::create(pool.clone());
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(
-                AppState::create(
-                    pool.clone(),
-                    Env {
+                AppState {
+                    db: pool.clone(),
+                    sse: Arc::clone(&eventor),
+                    env: Env {
                         reinit_user: reinit_user.to_owned(),
                         reinit_password: reinit_password.to_owned(),
-                        dyrek_password: dyrek_password.to_owned(),
-                    },
-                )
+                        dyrek_password: dyrek_password.to_owned()
+                    }
+                }
             ))
             .service(index)
             // This route is used to listen to events/ sse events
