@@ -70,11 +70,11 @@ use crate::structs::DbUser;
 
 pub(crate) use {errprint, warnprint, sucprint, ez, trans_multier};
 
-pub async fn trans_multi(sql: String, transaction: &mut PgConnection) -> Result<(), sqlx::Error> {
+pub async fn trans_multi(sql: impl IntoIterator<Item: Into<&str>>, transaction: &mut PgConnection) -> Result<(), sqlx::Error> {
     let mut err_string = String::from("");
     let mut er: Option<sqlx::Error> = None;
-    for line in sql.split(";") {
-        match sqlx::query(line).execute(&mut *transaction).await {
+    for line in sql {
+        match sqlx::query(line.into()).execute(&mut *transaction).await {
             Ok(_) => {}
             Err(err) => {
                 let err_msg = &format!("{}\n", err)[..];

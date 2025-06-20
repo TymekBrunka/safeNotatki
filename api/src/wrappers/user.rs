@@ -15,10 +15,11 @@ pub fn random_password(length: usize) -> String {
 
 pub mod user_admin {
     use crate::structs::DbUser;
-    use crate::utils::{DecupUnwrap, errprint, ez};
+    use crate::utils::{DecupUnwrap, DecupUnwrapActix, errprint, ez};
 
     use actix_web::{Error, error};
     use chrono::NaiveDate;
+    use futures_util::TryFutureExt;
     use sqlx::{Acquire, Postgres, pool::PoolConnection};
 
     use super::random_password;
@@ -63,7 +64,7 @@ pub mod user_admin {
 
         ez!(er);
         Ok(user.unwrap())
-    }
+}
 
     pub async fn get_user_type_ids(
         db: &mut PoolConnection<Postgres>,
@@ -93,8 +94,7 @@ pub mod user_admin {
         let mut transaction = db.begin().await.unwrap();
 
         let mut er: Option<sqlx::Error> = None;
-        let (id,): (i32,) = sqlx::query_as(
-            "
+        let (id,): (i32,) = sqlx::query_as("
         INSERT INTO users (
             first_name,
             last_name,
@@ -106,8 +106,7 @@ pub mod user_admin {
         ) VALUES ($1, $2, $3, $4, $5,
             now(),
             ''
-        ) RETURNING id;",
-        )
+        ) RETURNING id;",)
         .bind(first_name)
         .bind(last_name)
         .bind(email)
@@ -145,5 +144,143 @@ pub mod user_admin {
 
         ez!(er);
         Ok(())
+    }
+
+    pub async fn update(
+        db: &mut PoolConnection<Postgres>,
+        userid: i32,
+        first_name: String,
+        last_name: String,
+        email: String,
+        birth_date: NaiveDate,
+        users_types: Vec<i32>
+    ) -> Result<(), Error> {
+        let conn = db.acquire().await.unwrap();
+        let mut transaction = conn.begin().await.unwrap();
+
+        let mut er: Option<Error> = None;
+        _ = sqlx::query("
+        UPDATE users SET
+            first_name=$1,
+            last_name=$2,
+            email=$3,
+            birth_date=$4
+        WHERE id=$5;")
+        .bind(first_name)
+        .bind(last_name)
+        .bind(email)
+        .bind(birth_date)
+        .bind(userid)
+        .execute(&mut *transaction)
+        .await
+        .decup_actix(&mut er, true);
+        
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        _ = sqlx::query("DELETE FROM users_users_type WHERE user_id={id};")
+            .execute(&mut *transaction)
+            .await
+            .decup_actix(&mut er, true);
+
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        for utype in users_types {
+            _ = sqlx::query("INSERT INTO users_users_type WHERE user_id=$1;")
+            .bind(utype)
+            .execute(&mut *transaction)
+            .await
+            .decup_actix(&mut er, true);
+        }
+
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        transaction.commit().await.unwrap_or_else(|err| {
+            errprint!("{}", err);
+            er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
+        });
+
+        ez!(er); Ok(())
+    }
+
+    pub async fn delete(
+        db: &mut PoolConnection<Postgres>,
+        userid: i32
+    ) -> Result<(), Error> {
+        let conn = db.acquire().await.unwrap();
+        let mut transaction = conn.begin().await.unwrap();
+
+        let mut er: Option<Error> = None;
+        _ = sqlx::query("DELETE FROM group_members WHERE user_id=$1;")
+            .bind(userid)
+            .execute(&mut *transaction)
+            .await
+            .decup_actix(&mut er, true);
+
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        _ = sqlx::query("DELETE FROM users_users_type WHERE user_id=$1;")
+            .bind(userid)
+            .execute(&mut *transaction)
+            .await
+            .decup_actix(&mut er, true);
+
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        _ = sqlx::query("DELETE FROM users WHERE id=$1;")
+            .bind(userid)
+            .execute(&mut *transaction)
+            .await
+            .decup_actix(&mut er, true);
+
+        if er.is_some() {
+            transaction.rollback().await
+                .map(|_| ()).unwrap_or_else(|err| {
+                errprint!("{}", err);
+                ()
+            });
+            return Err(error::ErrorInternalServerError("Wystąpił błąd."));
+        }
+
+        transaction.commit().await.unwrap_or_else(|err| {
+            errprint!("{}", err);
+            er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
+        });
+
+        ez!(er); Ok(())
     }
 }

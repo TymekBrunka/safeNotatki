@@ -2,14 +2,13 @@ use actix_web::rt::time::interval;
 use actix_web_lab::sse::{self, ChannelStream, Sse};
 use futures_util::future;
 use sqlx::{Acquire, Pool, Postgres, pool::PoolConnection};
-use std::{
-    cell::RefCell, collections::HashMap, ops::Index, sync::{Arc, RwLock}, time::Duration
-};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 // use parking_lot::Mutex;
 
 use crate::structs::SseUser;
 use crate::utils::sucprint;
-use crate::utils::{DecupUnwrap, ez, warnprint};
+use crate::utils::{DecupUnwrap, ez};
 
 async fn get_group_ids(
     db: &mut PoolConnection<Postgres>,
@@ -151,7 +150,7 @@ impl Eventor {
         let mut final_clients: Vec<SseUser> = Vec::new();
 
         for client in clients {
-            if client.id == userid {
+            if client.id != userid {
                 final_clients.push(client);
             }
         }
@@ -247,5 +246,4 @@ impl Eventor {
         }
         ret
     }
-
 }

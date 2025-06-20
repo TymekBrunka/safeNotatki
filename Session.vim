@@ -13,22 +13,23 @@ if &shortmess =~ 'A'
 else
   set shortmess=aoO
 endif
-badd +48 ~/Documents/safeNotatki/api/src/structs.rs
-badd +28 ~/Documents/safeNotatki/api/src/wrappers/user.rs
+badd +49 ~/Documents/safeNotatki/api/src/structs.rs
+badd +265 ~/Documents/safeNotatki/api/src/wrappers/user.rs
 badd +2 ~/Documents/safeNotatki/api/src/endpoints.rs
-badd +4 ~/Documents/safeNotatki/api/src/sqlv2.sql
-badd +48 ~/Documents/safeNotatki/api/src/utils.rs
-badd +152 ~/Documents/safeNotatki/api/src/endpoints/general.rs
-badd +32 ~/Documents/safeNotatki/api/src/endpoints/admining_users.rs
-badd +18 ~/Documents/safeNotatki/api/Cargo.toml
-badd +98 ~/Documents/safeNotatki/api/src/main.rs
+badd +1 ~/Documents/safeNotatki/api/src/sqlv2.sql
+badd +201 ~/Documents/safeNotatki/api/src/utils.rs
+badd +85 ~/Documents/safeNotatki/api/src/endpoints/general.rs
+badd +60 ~/Documents/safeNotatki/api/src/endpoints/admining_users.rs
+badd +12 ~/Documents/safeNotatki/api/Cargo.toml
+badd +68 ~/Documents/safeNotatki/api/src/main.rs
 badd +2 ~/Documents/safeNotatki/api/src/wrappers.rs
-badd +82 ~/Documents/safeNotatki/api/src/wrappers/eventor.rs
+badd +52 ~/Documents/safeNotatki/api/src/wrappers/eventor.rs
+badd +186 ~/Documents/safeNotatki/api/src/wrappers/messanger.rs
 argglobal
 %argdel
 edit ~/Documents/safeNotatki/api/src/wrappers/eventor.rs
 argglobal
-balt ~/Documents/safeNotatki/api/src/structs.rs
+balt ~/Documents/safeNotatki/api/Cargo.toml
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -39,12 +40,12 @@ setlocal foldnestmax=20
 setlocal foldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 82 - ((10 * winheight(0) + 27) / 55)
+let s:l = 52 - ((27 * winheight(0) + 27) / 55)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 82
-normal! 049|
+keepjumps 52
+normal! 0
 tabnext 1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf

@@ -17,3 +17,4 @@ nanorand = "0.8.0"
 actix-web-lab = "0.18.5"
 parking_lot = "0.12.1"
 futures-util = { version = "0.3.25", default-features = false, features = ["std"] }
+dashmap = "6.1.0"

@@ -95,7 +95,7 @@ async fn dbreinit(
 
     let sql = String::from_utf8(read("./sqlv2.sql").await.unwrap()).unwrap();
     let mut is_err = false;
-    trans_multi(sql, &mut *transaction).await.unwrap_or_else(|err| {
+    trans_multi(sql.split(";"), &mut *transaction).await.unwrap_or_else(|err| {
         is_err = true;
         errprint!("SQL error```\n{}```", err)
     });

@@ -2,7 +2,7 @@ use sqlx::{pool::PoolConnection, Acquire, Postgres};
 use actix_web_lab::sse;
 use futures_util::future;
 
-use crate::{structs::SerDeSer, utils::errprint};
+use crate::{structs::SerDeSer, utils::{errprint, DecupUnwrap}};
 
 use super::eventor::{self, Eventor};
 
@@ -13,9 +13,9 @@ pub async fn send(
     recipientid: Option<i32>,
     groupid: Option<i32>,
 
-) -> () {
+) -> Result<(), sqlx::Error> {
     let mut conn = eventor.db.acquire().await.unwrap();
-    _ = sqlx::query("
+    let res = sqlx::query("
         INSERT INTO messages (
             sender_id,
             recipient_id,
@@ -31,6 +31,10 @@ pub async fn send(
     .bind("erm")
     .execute(&mut *conn)
     .await;
+
+    if res.is_err() {
+        return Err(res.unwrap_err());
+    }
 
     if groupid.is_some() {
         let groupid = groupid.unwrap();
@@ -75,6 +79,8 @@ pub async fn send(
 
         let _ = future::join_all(send_futures).await;
     }
+
+    Ok(())
 }
 
 pub async fn get_receivers(
