@@ -2,7 +2,7 @@ use sqlx::{pool::PoolConnection, Acquire, Postgres};
 use actix_web_lab::sse;
 use futures_util::future;
 
-use crate::{structs::SerDeSer, utils::{errprint, DecupUnwrap}};
+use crate::{structs::SerDeSer, utils::errprint};
 
 use super::eventor::{self, Eventor};
 

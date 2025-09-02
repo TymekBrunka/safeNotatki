@@ -8,22 +8,19 @@ use std::time::Duration;
 
 use crate::structs::SseUser;
 use crate::utils::sucprint;
-use crate::utils::{DecupUnwrap, ez};
+use crate::utils::ez;
 
 async fn get_group_ids(
     db: &mut PoolConnection<Postgres>,
     userid: i32,
 ) -> Result<Vec<i32>, sqlx::Error> {
     let conn = db.acquire().await.unwrap();
-    let mut er: Option<sqlx::Error> = None;
-    let ids: Option<Vec<i32>> = sqlx::query_scalar("SELECT id FROM groups JOIN group_members ON groups.id = group_members.group_id WHERE group_members.user_id = $1;")
+    let ids: Vec<i32> = sqlx::query_scalar("SELECT id FROM groups JOIN group_members ON groups.id = group_members.group_id WHERE group_members.user_id = $1;")
         .bind(userid)
         .fetch_all(&mut *conn)
-        .await
-        .decup(&mut er, true);
+        .await?;
 
-    ez!(er);
-    Ok(ids.unwrap())
+    Ok(ids)
 }
 
 pub struct Eventor {

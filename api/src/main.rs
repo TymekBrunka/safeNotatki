@@ -15,7 +15,7 @@ mod endpoints;
 pub mod utils;
 pub mod wrappers;
 
-use self::utils::{ez, get_cookie, get_user, DecupUnwrap};
+use self::utils::{ez, get_cookie, get_user};
 use self::wrappers::eventor::Eventor;
 use self::wrappers::messanger;
 use self::structs::{AppState, Env, DbUser};
@@ -38,9 +38,7 @@ pub async fn sse_client(
     let cookie = cookie.unwrap();
 
     let mut conn = state.db.acquire().await.unwrap();
-    let mut er: Option<Error> = None;
-    let user: Option<DbUser> = get_user(&mut conn, cookie.0, cookie.1, true).await.decup(&mut er, false);
-    ez!(er); let user = user.unwrap();
+    let user: DbUser = get_user(&mut conn, cookie.0, cookie.1, true).await?;
 
     Ok(state.sse.new_client(user.id, user.email).await)
     // Ok(state.sse.new_client(1, "timi".to_string()).await)
@@ -61,11 +59,9 @@ pub async fn broadcast_msg(
     let cookie = cookie.unwrap();
 
     let mut conn = state.db.acquire().await.unwrap();
-    let mut er: Option<Error> = None;
-    let user: Option<DbUser> = get_user(&mut conn, cookie.0, cookie.1, true).await.decup(&mut er, false);
-    ez!(er); let user = user.unwrap();
+    let user: DbUser = get_user(&mut conn, cookie.0, cookie.1, true).await?;
 
-    messanger::send(&state.sse, msg, user.id, Some(1), Some(1)).await;
+    let _ = messanger::send(&state.sse, msg, user.id, Some(1), Some(1)).await;
     Ok(HttpResponse::Ok().body("msg sent"))
 }
 
@@ -116,6 +112,8 @@ async fn main() -> std::io::Result<()> {
             .service(logout)
             //# admining users
             .service(add_user)
+            .service(update_user)
+            .service(delete_user)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()

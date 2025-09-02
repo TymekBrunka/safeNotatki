@@ -154,68 +154,24 @@ pub fn get_cookie(req: HttpRequest) -> Option<(String, String)> {
     None
 }
 
-pub trait DecupUnwrap<T, E>
+pub trait RemapActix<T, E>
 where
     E: Display,
 {
-    fn decup(self, er: &mut Option<E>, do_print: bool) -> Option<T>;
+    fn remap_actix(self, do_print: bool) -> Result<T, error::Error>;
 }
 
-impl<T, E> DecupUnwrap<T, E> for Result<T, E>
+impl<T, E> RemapActix<T, E> for Result<T, E>
 where
     E: Display,
 {
-    fn decup(self, er: &mut Option<E>, do_print: bool) -> Option<T> {
-        match self {
-            Ok(a) => Some(a),
-            Err(err) => {
-                if do_print {
-                    errprint!("{}", err);
-                }
-                *er = Some(err);
-                None
+    fn remap_actix(self, do_print: bool) -> Result<T, error::Error> {
+        self.map_err(|err| {
+            if do_print {
+                errprint!("{}", err);
             }
-        }
-    }
-}
 
-pub trait DecupUnwrapActix<T, E>
-where
-    E: Display,
-{
-    fn decup_actix(self, er: &mut Option<Error>, do_print: bool) -> Option<T>;
-}
-
-impl<T, E> DecupUnwrapActix<T, E> for Result<T, E>
-where
-    E: Display,
-{
-    fn decup_actix(self, er: &mut Option<Error>, do_print: bool) -> Option<T> {
-        match self {
-            Ok(a) => Some(a),
-            Err(err) => {
-                if do_print {
-                    errprint!("{}", err);
-                }
-
-                *er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
-                None
-            }
-        }
-    }
-}
-
-pub trait UnwrapPerms {
-    fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32>;
-}
-
-impl UnwrapPerms for Result<Vec<i32>, sqlx::Error> {
-    fn unwrap_perms(self, er: &mut Option<Error>) -> Vec<i32> {
-        self.unwrap_or_else(|err| {
-            errprint!("{}", err);
-            *er = Some(error::ErrorInternalServerError("Wystąpił błąd."));
-
-            vec![]
+            error::ErrorInternalServerError("Wystąpił błąd.")
         })
     }
 }
