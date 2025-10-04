@@ -3,12 +3,12 @@ use crate::utils::{errprint, warnprint, trans_multi, trans_multier, ez};
 
 use actix_web::cookie::{Cookie, time::OffsetDateTime};
 use actix_web::{HttpResponse, Error, error, web, post};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sha256;
 use sqlx::Acquire;
 use tokio::fs::read;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 struct LoginStruct {
     email: String,
     password: String,
@@ -69,10 +69,10 @@ async fn logout() -> HttpResponse {
     response
 }
 
-#[derive(Deserialize)]
-struct DbreinitStruct {
-    user: String,
-    password: String,
+#[derive(Deserialize, Serialize)]
+pub struct DbreinitStruct {
+    pub user: String,
+    pub password: String,
 }
 
 #[post("/dbreinit")]

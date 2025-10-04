@@ -15,21 +15,22 @@ else
 endif
 badd +49 ~/Documents/safeNotatki/api/src/structs.rs
 badd +265 ~/Documents/safeNotatki/api/src/wrappers/user.rs
-badd +2 ~/Documents/safeNotatki/api/src/endpoints.rs
-badd +1 ~/Documents/safeNotatki/api/src/sqlv2.sql
+badd +1 ~/Documents/safeNotatki/api/src/endpoints.rs
+badd +35 ~/Documents/safeNotatki/api/src/sqlv2.sql
 badd +201 ~/Documents/safeNotatki/api/src/utils.rs
-badd +85 ~/Documents/safeNotatki/api/src/endpoints/general.rs
+badd +88 ~/Documents/safeNotatki/api/src/endpoints/general.rs
 badd +60 ~/Documents/safeNotatki/api/src/endpoints/admining_users.rs
 badd +12 ~/Documents/safeNotatki/api/Cargo.toml
-badd +68 ~/Documents/safeNotatki/api/src/main.rs
+badd +94 ~/Documents/safeNotatki/api/src/main.rs
 badd +2 ~/Documents/safeNotatki/api/src/wrappers.rs
 badd +52 ~/Documents/safeNotatki/api/src/wrappers/eventor.rs
 badd +186 ~/Documents/safeNotatki/api/src/wrappers/messanger.rs
+badd +4 api/.env
+badd +50 ~/Documents/safeNotatki/api/src/appmod.rs
 argglobal
 %argdel
-edit ~/Documents/safeNotatki/api/src/wrappers/eventor.rs
+edit ~/Documents/safeNotatki/api/src/appmod.rs
 argglobal
-balt ~/Documents/safeNotatki/api/Cargo.toml
 setlocal foldmethod=manual
 setlocal foldexpr=0
 setlocal foldmarker={{{,}}}
@@ -37,14 +38,14 @@ setlocal foldignore=#
 setlocal foldlevel=0
 setlocal foldminlines=1
 setlocal foldnestmax=20
-setlocal foldenable
+setlocal nofoldenable
 silent! normal! zE
 let &fdl = &fdl
-let s:l = 52 - ((27 * winheight(0) + 27) / 55)
+let s:l = 50 - ((27 * winheight(0) + 27) / 55)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 52
+keepjumps 50
 normal! 0
 tabnext 1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
