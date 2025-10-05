@@ -1,5 +1,6 @@
 use actix_web::{Error, error, HttpRequest, HttpResponse, Responder, web, App, HttpServer, get};
 use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 // use sqlx::Row;
 // use sqlx::Pool;
 // use sqlx::Postgres;
@@ -15,6 +16,8 @@ mod endpoints;
 mod utils;
 mod wrappers;
 mod appmod;
+
+use crate::wrappers::eventor;
 
 use self::utils::{get_cookie, get_user};
 use self::wrappers::eventor::Eventor;
@@ -81,16 +84,14 @@ async fn main() -> std::io::Result<()> {
     // let reinit_password = env::var("REINIT_PASSWORD").expect("expected .env key: REINIT_PASSWORD");
     // let dyrek_password = env::var("DYREK_PASSWORD").expect("expected .env key: DYREK_PASSWORD");
     //
-    // let pool = PgPoolOptions::new()
-    //     .max_connections(5)
-    //     .connect("postgres://postgres:postgres@localhost:5432/facecloud")
-    //     .await
-    //     .expect("Error creating connection pool.");
+    // let mut pool: Option<PgPool> = None;
+    // let mut eventor: Option<Arc<Eventor>> = None;
+    // let mut env: Option<Env> = None;
+    //
+    // vars_prod!(pool, eventor, env);
     //
     // let eventor = Eventor::create(pool.clone());
 
-    let ppa = App::new();
-    let app = prod_config(ppa);
     HttpServer::new(move || {
         // App::new()
         //     .app_data(web::Data::new(
@@ -118,7 +119,7 @@ async fn main() -> std::io::Result<()> {
         //     .service(add_user)
         //     .service(update_user)
         //     .service(delete_user)
-        app
+        prod_config()
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()
@@ -131,7 +132,6 @@ mod tests {
     use actix_web::{
         test,
         body::to_bytes,
-        web::Bytes
     };
 
     #[actix_web::test]

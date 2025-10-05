@@ -18,3 +18,6 @@ actix-web-lab = "0.18.5"
 parking_lot = "0.12.1"
 futures-util = { version = "0.3.25", default-features = false, features = ["std"] }
 dashmap = "6.1.0"
+
+actix-service="2.0.3"
+actix-http="3.11.0"
