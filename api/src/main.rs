@@ -28,53 +28,6 @@ use self::appmod::*;
 use endpoints::general::*;
 use endpoints::admining_users::*;
 
-// SSE
-#[get("/sse{_:/?}")]
-pub async fn sse_client(
-    state: web::Data<AppState>,
-    req: HttpRequest
-) -> Result<impl Responder, Error> {
-
-    let cookie = get_cookie(req);
-    if cookie.is_none() {
-        return Err(error::ErrorUnauthorized("Nie jesteś zalogowany."));
-    }
-
-    let cookie = cookie.unwrap();
-
-    let mut conn = state.db.acquire().await.unwrap();
-    let user: DbUser = get_user(&mut conn, cookie.0, cookie.1, true).await?;
-
-    Ok(state.sse.new_client(user.id, user.email).await)
-    // Ok(state.sse.new_client(1, "timi".to_string()).await)
-}
-
-#[get("/sse/{msg}")]
-pub async fn broadcast_msg(
-    state: web::Data<AppState>,
-    Path((msg,)): Path<(String,)>,
-    req: HttpRequest
-) -> Result<impl Responder, Error> {
-
-    let cookie = get_cookie(req);
-    if cookie.is_none() {
-        return Err(error::ErrorUnauthorized("Nie jesteś zalogowany."));
-    }
-
-    let cookie = cookie.unwrap();
-
-    let mut conn = state.db.acquire().await.unwrap();
-    let user: DbUser = get_user(&mut conn, cookie.0, cookie.1, true).await?;
-
-    let _ = messanger::send(&state.sse, msg, user.id, Some(1), Some(1)).await;
-    Ok(HttpResponse::Ok().body("msg sent"))
-}
-
-
-#[get("/")]
-async fn index(_req: HttpRequest) -> &'static str {
-    "Hello world!"
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -92,6 +45,7 @@ async fn main() -> std::io::Result<()> {
     //
     // let eventor = Eventor::create(pool.clone());
 
+    let config = prod_config().await;
     HttpServer::new(move || {
         // App::new()
         //     .app_data(web::Data::new(
@@ -119,7 +73,7 @@ async fn main() -> std::io::Result<()> {
         //     .service(add_user)
         //     .service(update_user)
         //     .service(delete_user)
-        prod_config()
+        init_app(config)
     })
     .bind(format!("{}:{}","127.0.0.1", "8000"))?
     .run()
