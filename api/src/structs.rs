@@ -12,6 +12,7 @@ use std::sync::Arc;
 pub struct Env {
     pub reinit_user: String,
     pub reinit_password: String,
+    pub dyrek_email: String,
     pub dyrek_password: String,
 }
 

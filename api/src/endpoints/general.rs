@@ -1,5 +1,5 @@
 use crate::structs::AppState;
-use crate::utils::{errprint, warnprint, trans_multi, trans_multier, ez};
+use crate::utils::{errprint, warnprint, trans_multi, trans_multier, ez, RemapActix};
 
 use actix_web::cookie::{Cookie, time::OffsetDateTime};
 use actix_web::{HttpResponse, Error, error, web, post};
@@ -104,7 +104,7 @@ async fn dbreinit(
         return Err(error::ErrorInternalServerError("Wystąpił błąd podczas resetowania bazy danych."))
     }
 
-    trans_multier!(transaction,
+    let _ = sqlx::query(
         "INSERT INTO users (
             first_name,
             last_name,
@@ -117,13 +117,20 @@ async fn dbreinit(
         ) VALUES (
             'Zbigniew',
             'Kucharski',
-            'zbigniew.kucharski@wp.pl',
-            '5901d90eeda1aa6d10a930524a24ae350968749e9d33daf07c1c9592fc3a45c0',
+            $1,
+            $2,
             '1969-09-11',
             now(),
             'nie pedał, 100% real',
             true
-        );"
+        );")
+        .bind(&state.env.dyrek_email)
+        .bind(&state.env.dyrek_password)
+        .fetch_all(&mut *transaction)
+        .await
+        .remap_actix(true)?;
+
+    trans_multier!(transaction,
         // -- ustaw na dyrektora
         "INSERT INTO users_users_type (
             user_id,
@@ -153,4 +160,59 @@ async fn dbreinit(
 
     warnprint!("Baza danych została zresetowana");
     Ok(HttpResponse::Ok().body("Pomyślnie zresetowano bazę danych."))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::{
+        test,
+        body::to_bytes,
+        App,
+    };
+    use dotenv::dotenv;
+    use std::env;
+
+    use crate::appmod::*;
+
+    #[actix_web::test]
+    async fn test_dbreinit() {
+        dotenv().ok();
+        let reinit_test_password = env::var("REINIT_TEST_PASSWORD").expect("expected .env key: REINIT_TEST_PASSWORD");
+
+        let config = prod_config().await;
+        let app = test::init_service(
+            App::new()
+                .app_data(init_data(config.clone()))
+                .service(dbreinit)
+        ).await;
+        let req = test::TestRequest::post()
+            .uri("/dbreinit")
+            .set_json(DbreinitStruct {
+                user: config.2.reinit_user,
+                password: reinit_test_password
+            })
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(to_bytes(resp.into_body()).await.unwrap(), "Pomyślnie zresetowano bazę danych.");
+    }
+
+    #[actix_web::test]
+    async fn test_login_logout() {
+        let config = prod_config().await;
+        let app = test::init_service(
+            App::new()
+                .app_data(init_data(config.clone()))
+                .service(login)
+        ).await;
+        let req = test::TestRequest::post()
+            .uri("/")
+            .set_json(LoginStruct {
+                email: config.2.dyrek_email,
+                password: config.2.dyrek_password
+            })
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(to_bytes(resp.into_body()).await.unwrap(), "Pomyślnie zalogowano.");
+    }
 }
