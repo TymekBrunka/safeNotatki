@@ -88,6 +88,32 @@ pub async fn prod_config() -> (Pool<Postgres>, Arc<Eventor>, Env)
     (pool, eventor, env)
 }
 
+pub async fn test_config() -> (Pool<Postgres>, Arc<Eventor>, Env)
+{
+    dotenv().ok();
+    let reinit_user = env::var("REINIT_USER").expect("expected .env key: REINIT_USER");
+    let reinit_password = env::var("REINIT_TEST_PASSWORD_HASH").expect("expected .env key: REINIT_TEST_PASSWORD_HASH");
+    let dyrek_email = env::var("DYREK_EMAIL").expect("expected .env key: DYREK_EMAIL");
+    let dyrek_password = env::var("DYREK_TEST_PASSWORD_HASH").expect("expected .env key: DYREK_TEST_PASSWORD_HASH");
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect("postgres://postgres:postgres@localhost:5432/facecloud")
+        .await
+        .expect("Error creating connection pool.");
+
+    let eventor = Eventor::create(pool.clone());
+
+    let env = Env {
+        reinit_user: reinit_user.to_owned(),
+        reinit_password: reinit_password.to_owned(),
+        dyrek_email: dyrek_email.to_owned(),
+        dyrek_password: dyrek_password.to_owned()
+    };
+    
+    (pool, eventor, env)
+}
+
 pub fn init_data(config: (Pool<Postgres>, Arc<Eventor>, Env)) -> web::Data<AppState> {
     web::Data::new(
         AppState {

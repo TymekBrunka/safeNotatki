@@ -21,6 +21,7 @@ async fn login(
     // req: HttpRequest
 ) -> Result<HttpResponse, Error> {
 
+    errprint!("TO 1");
     // println!("{}", req.headers().get("cookie").unwrap().to_str().unwrap());
     let email = data.email.clone();
     let mut password = data.password.clone();
@@ -41,12 +42,14 @@ async fn login(
             None
         }
     };
+    errprint!("TO 2");
 
     ez!(er); let user = user.unwrap();
 
     if user.1 {
-        password = format!("{}{}{}", &password[4..7], &password[..], &password[2..4]);
+        password = format!("{}{}{}", &password[4..5], &password[..], &password[2..4]);
         password = sha256::digest(&password);
+        print!("{}", password);
     }
 
     if password != user.2 {
@@ -179,8 +182,7 @@ mod tests {
     async fn test_dbreinit() {
         dotenv().ok();
         let reinit_test_password = env::var("REINIT_TEST_PASSWORD").expect("expected .env key: REINIT_TEST_PASSWORD");
-
-        let config = prod_config().await;
+        let config = test_config().await;
         let app = test::init_service(
             App::new()
                 .app_data(init_data(config.clone()))
@@ -199,7 +201,8 @@ mod tests {
 
     #[actix_web::test]
     async fn test_login_logout() {
-        let config = prod_config().await;
+        let config = test_config().await;
+        let dyrek_test_password = env::var("DYREK_TEST_PASSWORD").expect("expected .env key: DYREK_TEST_PASSWORD");
         let app = test::init_service(
             App::new()
                 .app_data(init_data(config.clone()))
@@ -209,7 +212,7 @@ mod tests {
             .uri("/")
             .set_json(LoginStruct {
                 email: config.2.dyrek_email,
-                password: config.2.dyrek_password
+                password: dyrek_test_password
             })
             .to_request();
         let resp = test::call_service(&app, req).await;
